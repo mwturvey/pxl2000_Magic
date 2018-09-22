@@ -9,6 +9,9 @@
 // Version 1.0
 
 import java.io.*;
+import java.nio.ByteBuffer;
+
+
 
 public class WavFile
 {
@@ -24,7 +27,7 @@ public class WavFile
 	private IOState ioState;				// Specifies the IO State of the Wav File (used for snaity checking)
 	private int bytesPerSample;			// Number of bytes required to store a single sample
 	private long numFrames;					// Number of frames within the data section
-	private FileOutputStream oStream;	// Output stream used for writting data
+	private RandomAccessFile oStream;	// Output stream used for writing data
 	private FileInputStream iStream;		// Input stream used for reading data
 	private double floatScale;				// Scaling factor used for int <-> float conversion				
 	private double floatOffset;			// Offset factor used for int <-> float conversion				
@@ -428,7 +431,7 @@ public class WavFile
 
 		for (int f=0 ; f<numFramesToWrite ; f++)
 		{
-			if (frameCounter == numFrames) return f;
+//			if (frameCounter == numFrames) return f;
 
 			for (int c=0 ; c<numChannels ; c++)
 			{
@@ -662,6 +665,35 @@ public class WavFile
 			close(0);
 	}
 
+	public byte[] longToBytes(long x) {
+		ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+		buffer.putLong(x);
+		return buffer.array();
+	}
+	public byte[] intToBytes(int x) {
+		ByteBuffer buffer = ByteBuffer.allocate(4);
+		buffer.putInt(x);
+		return buffer.array();
+	}
+
+	void byteSwap(byte[] buff){
+		byte tmp;
+		for (int i=0; i < buff.length/2; i++)
+		{
+			tmp = buff[i];
+			buff[i] = buff[buff.length - i - 1];
+			buff[buff.length - i - 1] = tmp;
+		}
+	}
+
+		/* swap them bytes!
+	byte tmp = sizeBytes[3];
+	sizeBytes[3] = sizeBytes[0];
+	sizeBytes[0] = tmp;
+	tmp = sizeBytes[2];
+	sizeBytes[2] = sizeBytes[1];
+	sizeBytes[1] = tmp;*/
+
 	public void close(int numSamples) throws IOException
 	{
 		// Close the input stream and set to null
@@ -678,6 +710,25 @@ public class WavFile
 
 			// If an extra byte is required for word alignment, add it to the end
 			if (wordAlignAdjust) oStream.write(0);
+
+			int dataChunkSize = (int)(blockAlign * frameCounter);
+			int mainChunkSize =	4 +	// Riff Type
+					8 +	// Format ID and size
+					16 +	// Format data
+					8 + 	// Data ID and size
+					dataChunkSize;
+
+			byte[] dataChunkSizeBytes = intToBytes(dataChunkSize);
+			byte[] mainChunkSizeBytes = intToBytes(mainChunkSize);
+
+			byteSwap(dataChunkSizeBytes);
+			byteSwap(mainChunkSizeBytes);
+
+
+			oStream.seek(4);
+			oStream.write(mainChunkSizeBytes);
+			oStream.seek(40);
+			oStream.write(dataChunkSizeBytes);
 
 
 

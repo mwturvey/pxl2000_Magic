@@ -4,12 +4,14 @@ public class Main {
 	// write your code here
 
         String fileBase = "Test13";
+        //String fileBase = "pxl2000_192khtz_section_swapped";
 
         pxlConverter converter = new pxlConverter(fileBase + ".wav");
 
         try{
             converter.fftPass(null);
             converter.rollingAverage(fileBase + ".fft.wav", fileBase + ".smoothed_fft.wav");
+            converter.findSyncs(fileBase + ".smoothed_fft.wav", fileBase + ".syncs.csv");
         }
         catch (Exception e)
         {

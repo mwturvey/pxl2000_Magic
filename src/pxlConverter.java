@@ -124,32 +124,146 @@ public class pxlConverter {
     public void rollingAverage(String filenameIn, String filenameOut) throws Exception
     {
         WavFile wavIn = WavFile.openWavFile(new File(filenameIn));
+        WavFile wavOut = WavFile.newWavFile(new File(filenameOut),1,3 ,16,192000);
 
         int numChannels = wavIn.getNumChannels();
+        if (numChannels != 1)
+        {
+            throw new Exception("Mono Encoding Required");
+        }
 
-        // Create a buffer of 100 frames
-        int[] buffer = new int[100 * numChannels];
+        // Create a buffer of 1 frame
+        int[] buffer = new int[1 * numChannels];
+
+        int avgSize = 100;
+
+        int[] avgBuffer = new int[avgSize];
 
         int framesRead;
-        double min = Double.MAX_VALUE;
-        double max = Double.MIN_VALUE;
+        int frameCounter = 0;
 
         do
         {
             // Read frames into buffer
-            framesRead = wavIn.readFrames(buffer, 100);
+            framesRead = wavIn.readFrames(buffer, 1);
 
-            // Loop through frames and look for minimum and maximum value
-            for (int s=0 ; s<framesRead * numChannels ; s++)
-            {
-                if (buffer[s] > max) max = buffer[s];
-                if (buffer[s] < min) min = buffer[s];
+            if (framesRead == 0){
+                break;
             }
+            if (0 == frameCounter)
+            {
+                Arrays.fill(avgBuffer, 0);
+            }
+
+            avgBuffer[frameCounter % avgSize] = buffer[0];
+            frameCounter++;
+
+            int sum=0;
+            for (int i=0; i < avgBuffer.length; i++)
+            {
+                sum += avgBuffer[i];
+            }
+
+            int avg = sum / avgBuffer.length;
+
+
+
+            int[] sampleOut= new int[1];
+
+            sampleOut[0] = avg;
+
+            if (sampleOut[0] > 30000) {
+                sampleOut[0] = 30000;
+            }
+            wavOut.writeFrames(sampleOut,0, 1);
+
         }
         while (framesRead != 0);
 
         // Close the wavFile
         wavIn.close();
+        wavOut.close();
+
+    }
+
+    public void findSyncs(String filenameIn, String filenameOut) throws Exception
+    {
+        WavFile wavIn = WavFile.openWavFile(new File(filenameIn));
+        //WavFile wavOut = WavFile.newWavFile(new File(filenameOut),1,3 ,16,192000);
+        FileWriter fileOut = new FileWriter(filenameOut);
+        int numChannels = wavIn.getNumChannels();
+        if (numChannels != 1)
+        {
+            throw new Exception("Mono Encoding Required");
+        }
+
+        // Create a buffer of 1 frame
+        int[] buffer = new int[1 * numChannels];
+
+        int cutoffHigh = 10000;
+        int cutoffLow = 10000;
+
+        int frameCounter = 0;
+
+        boolean initializing = true;
+        int previousValue = 0;
+        int startOfSyncPulse = 0;
+        int previousSyncLength = 238; // a reasonable guess.
+
+        while (0 != wavIn.readFrames(buffer, 1))
+        {
+            if (initializing){
+                // if we're at the beginning of the file, don't count
+                // any initial sync pulse until we've seen a low value first.
+                if (buffer[0] > cutoffHigh || frameCounter == 0) {
+                    previousValue = buffer[0];
+                    frameCounter++;
+                    continue;
+                }
+                initializing = false;
+            }
+
+            if (buffer[0] > cutoffHigh && previousValue <= cutoffHigh && startOfSyncPulse == 0)
+            {
+                // sync going up!
+                startOfSyncPulse = frameCounter;
+            }
+            if (buffer[0] <= cutoffLow && previousValue > cutoffLow)
+            {
+                // sync going down!
+                if (0 == startOfSyncPulse)
+                {
+                    throw new Exception("Start of Sync Pulse not set!");
+                }
+
+                int syncPulseLen = frameCounter - startOfSyncPulse;
+                int syncPulseCenter = (frameCounter + startOfSyncPulse)/2;
+
+                if (syncPulseLen > 2000) {
+                    // This is a frame sync
+                    fileOut.write("1, " + syncPulseCenter + "," + syncPulseLen + "\n");
+                }
+                else if (syncPulseLen < 500) {
+                    // This is a line sync
+                    fileOut.write("2, " + syncPulseCenter + "," + syncPulseLen + "\n");
+                }
+                else {
+                    // This is an unknown type of sync
+                    fileOut.write("3, " + syncPulseCenter + "," + syncPulseLen + "\n");
+                }
+
+                startOfSyncPulse = 0;
+            }
+
+
+            previousValue = buffer[0];
+            frameCounter++;
+        }
+
+
+        // Close the wavFile
+        wavIn.close();
+        fileOut.close();
 
     }
    // public void
