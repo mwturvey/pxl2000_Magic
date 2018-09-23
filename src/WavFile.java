@@ -28,10 +28,11 @@ public class WavFile
 	private int bytesPerSample;			// Number of bytes required to store a single sample
 	private long numFrames;					// Number of frames within the data section
 	private RandomAccessFile oStream;	// Output stream used for writing data
-	private FileInputStream iStream;		// Input stream used for reading data
+	private RandomAccessFile iStream;		// Input stream used for reading data
 	private double floatScale;				// Scaling factor used for int <-> float conversion				
 	private double floatOffset;			// Offset factor used for int <-> float conversion				
 	private boolean wordAlignAdjust;		// Specify if an extra byte at the end of the data chunk is required for word alignment
+	private long dataSectionOffset;		// Location in the file of the first data byte.
 
 	// Wav Header
 	private int numChannels;				// 2 bytes unsigned, 0x0001 (1) to 0xFFFF (65,535)
@@ -179,7 +180,8 @@ public class WavFile
 		wavFile.file = file;
 
 		// Create a new file input stream for reading file data
-		wavFile.iStream = new FileInputStream(file);
+		//wavFile.iStream = new FileInputStream(file);
+		wavFile.iStream = new RandomAccessFile (file, "r");
 
 		// Read the first 12 bytes of the file
 		int bytesRead = wavFile.iStream.read(wavFile.buffer, 0, 12);
@@ -251,7 +253,12 @@ public class WavFile
 				// Account for number of format bytes and then skip over
 				// any extra format bytes
 				numChunkBytes -= 16;
-				if (numChunkBytes > 0) wavFile.iStream.skip(numChunkBytes);
+
+
+				if (numChunkBytes > 0){
+					wavFile.iStream.skipBytes((int)numChunkBytes);
+				}
+
 			}
 			else if (chunkID == DATA_CHUNK_ID)
 			{
@@ -275,8 +282,11 @@ public class WavFile
 			else
 			{
 				// If an unknown chunk ID is found, just skip over the chunk data
-				wavFile.iStream.skip(numChunkBytes);
+				wavFile.iStream.skipBytes((int)numChunkBytes);
 			}
+
+			wavFile.dataSectionOffset = wavFile.iStream.getFilePointer();
+
 		}
 
 		// Throw an exception if no data chunk has been found
@@ -304,6 +314,21 @@ public class WavFile
 		wavFile.ioState = IOState.READING;
 
 		return wavFile;
+	}
+
+	// So far, this has only been coded to work on reading, not writing
+	public void seek(long frameOffset)
+	{
+		if (frameOffset >= numFrames || frameOffset < 0){
+			throw new IllegalArgumentException("Invalid value for frameOffset");
+		}
+
+		try {
+			iStream.seek(frameOffset * blockAlign + dataSectionOffset);
+		}
+		catch (java.io.IOException e){
+			throw new IllegalArgumentException("Cannot seek to specified frameOffset");
+		}
 	}
 
 	// Get and Put little endian data from local buffer
