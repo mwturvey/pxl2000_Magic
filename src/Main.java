@@ -12,6 +12,7 @@ public class Main {
             converter.fftPass(null);
             converter.rollingAverage(fileBase + ".fft.wav", fileBase + ".smoothed_fft.wav");
             converter.findSyncs(fileBase + ".smoothed_fft.wav", fileBase + ".syncs.csv");
+            converter.findFrames(fileBase + ".syncs.csv", fileBase + ".raw_frames.csv");
         }
         catch (Exception e)
         {

@@ -86,10 +86,12 @@ public class pxlConverter {
                 double foo = realBuffer[imageBuffLen-1];
                 double foo2 = realBuffer[imageBuffLen-2];
                 int indexToSample = 9;
-                sampleOut[0] = (int)Math.sqrt(realBuffer[5] * realBuffer[5] + imaginaryBuffer[5] * imaginaryBuffer[5]);
-                sampleOut[0] = (int)Math.sqrt(realBuffer[indexToSample] * realBuffer[indexToSample] + imaginaryBuffer[indexToSample] * imaginaryBuffer[indexToSample]);
+//                sampleOut[0] = (int)Math.sqrt(realBuffer[5] * realBuffer[5] + imaginaryBuffer[5] * imaginaryBuffer[5]);
+//                sampleOut[0] = (int)Math.sqrt(realBuffer[indexToSample] * realBuffer[indexToSample] + imaginaryBuffer[indexToSample] * imaginaryBuffer[indexToSample]);
+                sampleOut[0] = (int)Math.sqrt(realBuffer[9] * realBuffer[9] + imaginaryBuffer[9] * imaginaryBuffer[9]) +
+                               (int)Math.sqrt(realBuffer[10] * realBuffer[10] + imaginaryBuffer[10] * imaginaryBuffer[10]) ;
                 // normalize
-                sampleOut[0] = sampleOut[0] / 8;
+                sampleOut[0] = sampleOut[0] / 16;
                 if (sampleOut[0] > 30000) {
                     sampleOut[0] = 30000;
                 }
@@ -241,15 +243,15 @@ public class pxlConverter {
 
                 if (syncPulseLen > 2000) {
                     // This is a frame sync
-                    fileOut.write("1, " + syncPulseCenter + "," + syncPulseLen + "\n");
+                    fileOut.write("1," + syncPulseCenter + "," + syncPulseLen + "\n");
                 }
                 else if (syncPulseLen < 500) {
                     // This is a line sync
-                    fileOut.write("2, " + syncPulseCenter + "," + syncPulseLen + "\n");
+                    fileOut.write("2," + syncPulseCenter + "," + syncPulseLen + "\n");
                 }
                 else {
                     // This is an unknown type of sync
-                    fileOut.write("3, " + syncPulseCenter + "," + syncPulseLen + "\n");
+                    fileOut.write("3," + syncPulseCenter + "," + syncPulseLen + "\n");
                 }
 
                 startOfSyncPulse = 0;
@@ -266,6 +268,69 @@ public class pxlConverter {
         fileOut.close();
 
     }
-   // public void
+
+
+    public void findFrames(String filenameIn, String filenameOut) throws Exception {
+        BufferedReader fileIn = new BufferedReader(new FileReader(filenameIn));
+        FileWriter fileOut = new FileWriter(filenameOut);
+
+        int lineSyncsPerFrame = 91; // a PXL 2000 frame has 91 sync pulses
+        int maxlineSyncs = 200;
+        int[] lineSyncOffsets = new int[maxlineSyncs];
+        int[] lineSyncDurations = new int[maxlineSyncs];
+
+        String line = null;
+        boolean lookingForFrameSync = true;
+        int nextEntry = 0;
+        while (null != (line = fileIn.readLine())) {
+            String[] lineSplit = line.split(",");
+            int entryType = Integer.parseInt(lineSplit[0]);
+            int offset = Integer.parseInt(lineSplit[1]);
+            int width = Integer.parseInt((lineSplit[2]));
+
+            if (true == lookingForFrameSync && 1 != entryType) {
+                // keep looking
+                continue;
+            } else if (true == lookingForFrameSync && 1 == entryType) {
+                nextEntry = 0;
+                lookingForFrameSync = false;
+                continue;
+            }
+
+            if (2 != entryType){
+                // complete the line
+                if (nextEntry > maxlineSyncs){
+                    nextEntry = maxlineSyncs;
+                }
+
+                for (int i=0; i < nextEntry; i++){
+                    fileOut.write(lineSyncOffsets[i] + ", " + lineSyncDurations[i]);
+                    if (i+1 < nextEntry)
+                    {
+                        fileOut.write(", " );
+                    }
+                }
+                fileOut.write("\n" );
+                nextEntry = 0;
+                if (1 == entryType) {
+                    lookingForFrameSync = false;
+                }
+                continue;
+            }
+            if (nextEntry < maxlineSyncs){
+                lineSyncOffsets[nextEntry] = offset;
+                lineSyncDurations[nextEntry] = width;
+            }
+
+            nextEntry++;
+
+
+        }
+
+        fileOut.close();
+        fileIn.close();
+    }
+
+    // public void
 
 }
