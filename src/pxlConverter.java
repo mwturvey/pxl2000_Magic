@@ -1,6 +1,9 @@
+import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.*;
 import java.util.Arrays;
 
@@ -304,10 +307,10 @@ public class pxlConverter {
                 }
 
                 for (int i=0; i < nextEntry; i++){
-                    fileOut.write(lineSyncOffsets[i] + ", " + lineSyncDurations[i]);
+                    fileOut.write(lineSyncOffsets[i] + "," + lineSyncDurations[i]);
                     if (i+1 < nextEntry)
                     {
-                        fileOut.write(", " );
+                        fileOut.write("," );
                     }
                 }
                 fileOut.write("\n" );
@@ -331,6 +334,306 @@ public class pxlConverter {
         fileIn.close();
     }
 
-    // public void
+
+
+    public int[] getPixels1(WavFile wavIn, int previousOffset, int nextOffset, int videoChannel) throws java.io.IOException, WavFileException
+    {
+        // let's try something simple first.
+        // For every six pixels (or rather, pixel transitions), find the steepest slope, and
+        // consider that to be the "color" of the pixel.
+
+        int numPixels = (nextOffset - previousOffset + 1) / 6;
+
+        numPixels--;  // TODO: hack to avoid a one-off error
+
+        int[] pixels = new int[numPixels];
+
+        int numChannels = wavIn.getNumChannels();
+
+        int[][] audioData = new int[numChannels][nextOffset - previousOffset + 1];
+
+        wavIn.seek(previousOffset);
+
+        wavIn.readFrames(audioData,0,nextOffset - previousOffset + 1);
+        // This is for debug purposes
+        WavFile wavOut = WavFile.newWavFile(new File("DebugWav-" + previousOffset + "-" + nextOffset +".wav"),1,3 ,16,192000);
+
+        wavOut.writeFrames(audioData[videoChannel], nextOffset - previousOffset + 1);
+        wavOut.close();
+
+
+
+        for (int i=0; i < numPixels; i++){
+            int maxDelta = 0;
+            for (int j=0; j < 6; j++)
+            {
+                int delta = Math.abs(audioData[videoChannel][(i*6)+j+1] - audioData[videoChannel][(6*i)+j]);
+                if (delta > maxDelta)
+                {
+                    maxDelta = delta;
+                }
+            }
+            pixels[i] = maxDelta;
+        }
+
+        return pixels;
+    }
+
+    public int[] getPixels2(WavFile wavIn, int previousOffset, int nextOffset, int videoChannel) throws java.io.IOException, WavFileException
+    {
+        // let's try something simple first.
+        // For every six pixels (or rather, pixel transitions), find the steepest slope, and
+        // consider that to be the "color" of the pixel.
+
+
+//        int numPixels = (nextOffset - previousOffset + 1) / 6;
+        int samplesThisRow = (nextOffset - previousOffset + 1);
+
+//        numPixels--;  // TODO: hack to avoid a one-off error
+        int pixelsPerRow = 120;
+
+        int[] pixels = new int[pixelsPerRow];
+
+        int numChannels = wavIn.getNumChannels();
+
+        int[][] audioData = new int[numChannels][nextOffset - previousOffset + 1];
+
+        int lineShift = -70; // TODO: This is a tunable parameter to shift the lines to the right or left
+
+        wavIn.seek(previousOffset + lineShift);
+
+        wavIn.readFrames(audioData,0,nextOffset - previousOffset + 1);
+        //// This is for debug purposes
+        //WavFile wavOut = WavFile.newWavFile(new File("DebugWav-" + previousOffset + "-" + nextOffset +".wav"),1,3 ,16,192000);
+
+        //wavOut.writeFrames(audioData[videoChannel], nextOffset - previousOffset + 1);
+        //wavOut.close();
+
+
+
+        for (int i=0; i < pixelsPerRow; i++){
+            int maxDelta = 0;
+            int pixelStart = (samplesThisRow/(pixelsPerRow+1)) * i;
+            int pixelEnd = (samplesThisRow/(pixelsPerRow+1)) * (i+1);
+            for (int j=pixelStart; j < pixelEnd; j++)
+            {
+                int delta = Math.abs(audioData[videoChannel][j] - audioData[videoChannel][j+1]);
+                if (delta > maxDelta)
+                {
+                    maxDelta = delta;
+                }
+            }
+            pixels[i] = maxDelta;
+        }
+
+        return pixels;
+    }
+
+    public int[] getPixels3(WavFile wavIn, int previousOffset, int nextOffset, int videoChannel) throws java.io.IOException, WavFileException
+    {
+        // let's try something simple first.
+        // For every six pixels (or rather, pixel transitions), find the steepest slope, and
+        // consider that to be the "color" of the pixel.
+
+
+//        int numPixels = (nextOffset - previousOffset + 1) / 6;
+        int samplesThisRow = (nextOffset - previousOffset + 1);
+
+//        numPixels--;  // TODO: hack to avoid a one-off error
+        int pixelsPerRow = 120;
+
+        int[] pixels = new int[pixelsPerRow];
+
+        int numChannels = wavIn.getNumChannels();
+
+        int[][] audioData = new int[numChannels][nextOffset - previousOffset + 1];
+
+        int lineShift = -90; // TODO: This is a tunable parameter to shift the lines to the right or left
+
+        wavIn.seek(previousOffset + lineShift);
+
+        wavIn.readFrames(audioData,0,nextOffset - previousOffset + 1);
+        //// This is for debug purposes
+        //WavFile wavOut = WavFile.newWavFile(new File("DebugWav-" + previousOffset + "-" + nextOffset +".wav"),1,3 ,16,192000);
+
+        //wavOut.writeFrames(audioData[videoChannel], nextOffset - previousOffset + 1);
+        //wavOut.close();
+
+
+
+        for (int i=0; i < pixelsPerRow; i++){
+            int maxDelta = 0;
+            int pixelStart = (samplesThisRow/(pixelsPerRow+1)) * i;
+            int pixelEnd = (samplesThisRow/(pixelsPerRow+1)) * (i+1);
+            int max = audioData[videoChannel][pixelStart];
+            int min = audioData[videoChannel][pixelStart];
+            for (int j=pixelStart; j <= pixelEnd; j++)
+            {
+                if (min > audioData[videoChannel][j])
+                {
+                    min = audioData[videoChannel][j];
+                }
+                if (max < audioData[videoChannel][j]){
+                    max = audioData[videoChannel][j];
+                }
+
+            }
+            pixels[i] = max-min;
+        }
+
+        return pixels;
+    }
+
+    public void saveImage(int[][] pixels, String imageFilename) throws java.io.IOException
+    {
+        int numRows = 0;
+        int maxCols = 0;
+
+        try{
+            for (int i=0; i < pixels.length; i++){
+                if (pixels[i].length > maxCols){
+                    maxCols = pixels[i].length;
+
+                }
+                numRows++;
+            }
+        }
+        catch (java.lang.NullPointerException e)
+        {
+            int i = 3;
+            // we were expecting it. planning on it really.
+            // It was basically a "break" statement.  Ignore and continue.
+        }
+
+        /*
+
+        int[][] pixelData = new int[maxCols][numRows];
+
+        for (int currentRow = 0; currentRow < numRows; currentRow++)
+        {
+            for (int currentColumn = 0; currentColumn < pixels[currentRow].length; currentColumn++){
+                pixelData[currentColumn][currentRow] = pixels[currentRow][currentColumn];
+            }
+        }
+        */
+
+        int[] imageBuffer = new int[numRows * maxCols];
+
+        for (int x=0; x < maxCols; x++){
+            for (int y=0; y < numRows; y++){
+                if (x < pixels[y].length ){
+                     int pixelValue = pixels[y][x] / 10;  //TODO: The value 10 here is a tunable parameter for brightness adjustment.
+                    if (pixelValue > 255){
+                        pixelValue = 255;
+                    }
+                    imageBuffer[y*maxCols + x] = 255- pixelValue;
+                }
+                else{
+                    imageBuffer[y*maxCols + x] = 0;
+                }
+
+            }
+        }
+
+        BufferedImage image = new BufferedImage(maxCols, numRows, BufferedImage.TYPE_BYTE_GRAY);
+        WritableRaster raster = image.getRaster();
+        raster.setPixels(0, 0, maxCols, numRows, imageBuffer);
+
+        ImageIO.write(image, "png", new File(imageFilename));
+
+    }
+
+
+    public void drawFrames(String framesFilenameIn, String originalFilenameIn, String ImagePrefix, int videoChannel) throws Exception {
+        BufferedReader fileIn = new BufferedReader(new FileReader(framesFilenameIn));
+//        WavFile wavIn = WavFile.openWavFile(new File(originalFilenameIn));
+
+
+        int currentImage = 0;
+        int maxRows = 100;
+        int[][] pixels = new int[maxRows][];
+        String line;
+        while (null != (line = fileIn.readLine())) {
+            String[] lineSplit = line.split(",");
+
+            int lineIndex = 0;
+            int previousOffset = Integer.parseInt(lineSplit[0]);
+            for (int i=2; i < lineSplit.length; i+= 2) {
+                int lineSyncOffset = Integer.parseInt(lineSplit[i]);
+                // line starts on previousOffset and ends on lineSyncOffset
+
+                WavFile wavIn = WavFile.openWavFile(new File(originalFilenameIn));
+
+                //pixels[lineIndex] = getPixels1(wavIn, previousOffset, lineSyncOffset, videoChannel);
+                pixels[lineIndex] = getPixels2(wavIn, previousOffset, lineSyncOffset, videoChannel);
+                //pixels[lineIndex] = getPixels3(wavIn, previousOffset, lineSyncOffset, videoChannel);
+
+                wavIn.close();
+
+                previousOffset = lineSyncOffset;
+                lineIndex++;
+            }
+
+            saveImage(pixels, ImagePrefix + currentImage + ".png");
+
+            currentImage++;
+        }
+
+        //wavIn.close();
+
+    }
+
+    // creates a special WAV file where all locations are visibly unique for debug reasons
+    public void createNonRepeatingWav() throws Exception
+    {
+        WavFile wavOut = WavFile.newWavFile(new File("index.wav"),2,3 ,16,192000);
+
+        int multiplier = 10;
+        int[] sampleOut = new int[4];
+        for (int i=0; i < 32000 * multiplier; i++)
+        {
+            sampleOut[0] = -(i/multiplier) ;
+            sampleOut[2] = (i* 100) % 32000;
+            sampleOut[1] = (i % 64000) - 32000;
+            sampleOut[3] = (i % 64000) - 32000;
+
+            wavOut.writeFrames(sampleOut,0, 2);
+
+        }
+
+        wavOut.close();
+
+    }
+
+    public void copyNonRepeatingWav() throws Exception
+    {
+        WavFile wavOut = WavFile.newWavFile(new File("indexCopy.wav"),2,3 ,16,192000);
+        WavFile wavIn = WavFile.openWavFile(new File("index.wav"));
+
+
+        int multiplier = 10;
+        int[] sampleOut = new int[2];
+        int[][] audioData = new int[2][1];
+        for (int i=0; i < 32000 * multiplier * 2; i++)
+        {
+
+            if (i >0 && (i % 47234)== 0) {
+                wavIn.seek(i);
+            }
+
+            wavIn.readFrames(audioData,0,1);
+
+            wavOut.writeFrames(audioData,1);
+
+//            wavOut.writeFrames(sampleOut,0, 2);
+
+        }
+
+        wavOut.close();
+
+    }
+
+
+        // public void
 
 }

@@ -481,7 +481,7 @@ public class WavFile
 
 		for (int f=0 ; f<numFramesToWrite ; f++)
 		{
-			if (frameCounter == numFrames) return f;
+//			if (frameCounter == numFrames) return f;
 
 			for (int c=0 ; c<numChannels ; c++) writeSample(sampleBuffer[c][offset]);
 
@@ -552,7 +552,7 @@ public class WavFile
 
 		for (int f=0 ; f<numFramesToWrite ; f++)
 		{
-			if (frameCounter == numFrames) return f;
+//			if (frameCounter == numFrames) return f;
 
 			for (int c=0 ; c<numChannels ; c++)
 			{
@@ -577,7 +577,7 @@ public class WavFile
 
 		for (int f=0 ; f<numFramesToWrite ; f++)
 		{
-			if (frameCounter == numFrames) return f;
+//			if (frameCounter == numFrames) return f;
 
 			for (int c=0 ; c<numChannels ; c++) writeSample(sampleBuffer[c][offset]);
 
@@ -673,7 +673,7 @@ public class WavFile
 
 		for (int f=0 ; f<numFramesToWrite ; f++)
 		{
-			if (frameCounter == numFrames) return f;
+//			if (frameCounter == numFrames) return f;
 
 			for (int c=0 ; c<numChannels ; c++) writeSample((long) (floatScale * (floatOffset + sampleBuffer[c][offset])));
 
