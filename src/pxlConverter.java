@@ -6,6 +6,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.*;
 import java.util.Arrays;
+import java.util.Map;
 
 public class pxlConverter {
 
@@ -19,7 +20,7 @@ public class pxlConverter {
     }
 
 
-    public void fftPass(String fileIn) throws Exception
+    public void fftPass(Map<String, String> config, String fileIn, int videoChannel) throws Exception
     {
         if (null == fileIn){
             fileIn = filename;
@@ -112,7 +113,9 @@ public class pxlConverter {
 
             int cbuffIndex = circularBuffIndex % imageBuffLen;
             //double val =  (int)(frame[0]&0xff) + (int)(frame[1] <<8);
-            double val =  (int)(frame[1] * 0x100 + (frame[0] + 256)%256);
+
+
+            double val =  (int)(frame[1 + videoChannel*2] * 0x100 + (frame[0 + videoChannel*2] + 256)%256);
             imageBuff[cbuffIndex] = val;
 
             circularBuffIndex++;
@@ -126,7 +129,10 @@ public class pxlConverter {
         // close the csv file
     }
 
-    public void rollingAverage(String filenameIn, String filenameOut) throws Exception
+    public void rollingAverage(
+            Map<String, String> config,
+            String filenameIn,
+            String filenameOut) throws Exception
     {
         WavFile wavIn = WavFile.openWavFile(new File(filenameIn));
         WavFile wavOut = WavFile.newWavFile(new File(filenameOut),1,3 ,16,192000);
@@ -191,7 +197,10 @@ public class pxlConverter {
 
     }
 
-    public void findSyncs(String filenameIn, String filenameOut) throws Exception
+    public void findSyncs
+            (Map<String, String> config,
+             String filenameIn,
+             String filenameOut) throws Exception
     {
         WavFile wavIn = WavFile.openWavFile(new File(filenameIn));
         //WavFile wavOut = WavFile.newWavFile(new File(filenameOut),1,3 ,16,192000);
@@ -273,7 +282,10 @@ public class pxlConverter {
     }
 
 
-    public void findFrames(String filenameIn, String filenameOut) throws Exception {
+    public void findFrames(
+            Map<String, String> config,
+            String filenameIn,
+            String filenameOut) throws Exception {
         BufferedReader fileIn = new BufferedReader(new FileReader(filenameIn));
         FileWriter fileOut = new FileWriter(filenameOut);
 
@@ -389,7 +401,6 @@ public class pxlConverter {
 //        int numPixels = (nextOffset - previousOffset + 1) / 6;
         int samplesThisRow = (nextOffset - previousOffset + 1);
 
-//        numPixels--;  // TODO: hack to avoid a one-off error
         int pixelsPerRow = 120;
 
         int[] pixels = new int[pixelsPerRow];
@@ -398,7 +409,7 @@ public class pxlConverter {
 
         int[][] audioData = new int[numChannels][nextOffset - previousOffset + 1];
 
-        int lineShift = -70; // TODO: This is a tunable parameter to shift the lines to the right or left
+        int lineShift = -90; // TODO: This is a tunable parameter to shift the lines to the right or left
 
         wavIn.seek(previousOffset + lineShift);
 
@@ -439,7 +450,6 @@ public class pxlConverter {
 //        int numPixels = (nextOffset - previousOffset + 1) / 6;
         int samplesThisRow = (nextOffset - previousOffset + 1);
 
-//        numPixels--;  // TODO: hack to avoid a one-off error
         int pixelsPerRow = 120;
 
         int[] pixels = new int[pixelsPerRow];
@@ -484,6 +494,58 @@ public class pxlConverter {
         return pixels;
     }
 
+    public int[] getPixels4(WavFile wavIn, int previousOffset, int nextOffset, int videoChannel) throws java.io.IOException, WavFileException
+    {
+        // let's try something simple first.
+        // For every six pixels (or rather, pixel transitions), find the steepest slope, and
+        // consider that to be the "color" of the pixel.
+
+
+//        int numPixels = (nextOffset - previousOffset + 1) / 6;
+        int samplesThisRow = (nextOffset - previousOffset + 1);
+
+        int pixelsPerRow = 360;
+        int pixelsRowWidth = 150;
+
+        int[] pixels = new int[pixelsPerRow];
+
+        int numChannels = wavIn.getNumChannels();
+
+        int[][] audioData = new int[numChannels][nextOffset - previousOffset + 1];
+
+        int lineShift = -50; // TODO: This is a tunable parameter to shift the lines to the right or left
+
+        wavIn.seek(previousOffset + lineShift);
+
+        wavIn.readFrames(audioData,0,nextOffset - previousOffset + 1);
+        //// This is for debug purposes
+        //WavFile wavOut = WavFile.newWavFile(new File("DebugWav-" + previousOffset + "-" + nextOffset +".wav"),1,3 ,16,192000);
+
+        //wavOut.writeFrames(audioData[videoChannel], nextOffset - previousOffset + 1);
+        //wavOut.close();
+
+        int paddingNeeded = samplesThisRow/(pixelsRowWidth+1) - (samplesThisRow/(pixelsPerRow+1));
+        int unpaddedSamples = samplesThisRow - paddingNeeded;
+
+        for (int i=0; i < pixelsPerRow; i++){
+            int maxDelta = 0;
+            int pixelStart = (unpaddedSamples/(pixelsPerRow+1)) * i;
+            int pixelEnd = (unpaddedSamples/(pixelsPerRow+1)) * i + unpaddedSamples/(pixelsRowWidth+1);
+            for (int j=pixelStart; j < pixelEnd; j++)
+            {
+                int delta = Math.abs(audioData[videoChannel][j] - audioData[videoChannel][j+1]);
+                if (delta > maxDelta)
+                {
+                    maxDelta = delta;
+                }
+            }
+            pixels[i] = maxDelta;
+        }
+
+        return pixels;
+    }
+
+
     public void saveImage(int[][] pixels, String imageFilename) throws java.io.IOException
     {
         int numRows = 0;
@@ -517,34 +579,63 @@ public class pxlConverter {
         }
         */
 
-        int[] imageBuffer = new int[numRows * maxCols];
 
-        for (int x=0; x < maxCols; x++){
-            for (int y=0; y < numRows; y++){
-                if (x < pixels[y].length ){
-                     int pixelValue = pixels[y][x] / 10;  //TODO: The value 10 here is a tunable parameter for brightness adjustment.
-                    if (pixelValue > 255){
-                        pixelValue = 255;
+        int maxVal = 0;
+        int[] allVals = new int[maxCols * numRows];
+        int numPixels = 0;
+        for (int x=0; x < maxCols; x++) {
+            for (int y = 0; y < numRows; y++) {
+                if (x < pixels[y].length) {
+                    if (pixels[y][x] > maxVal) {
+                        maxVal = pixels[y][x];
                     }
-                    imageBuffer[y*maxCols + x] = 255- pixelValue;
+                    allVals[numPixels] = pixels[y][x];
+                    numPixels++;
                 }
-                else{
-                    imageBuffer[y*maxCols + x] = 0;
-                }
-
             }
         }
 
-        BufferedImage image = new BufferedImage(maxCols, numRows, BufferedImage.TYPE_BYTE_GRAY);
+        Arrays.sort(allVals);
+        maxVal = allVals[numPixels * 85 / 100];
+
+        int[] imageBuffer = new int[(3*numRows) * maxCols];
+
+        for (int x=0; x < maxCols; x++){
+            for (int y = 0; y < numRows; y++) {
+                if (x < pixels[y].length) {
+                    //                    int pixelValue = pixels[y][x] / 2;  //TODO: The value 10 here is a tunable parameter for brightness adjustment.
+                    int pixelValue = pixels[y][x] * 255 / maxVal;  //TODO: The value 10 here is a tunable parameter for brightness adjustment.
+                    if (pixelValue > 255) {
+                        pixelValue = 255;
+                    }
+                    imageBuffer[((3*y) * maxCols) + x] = 255 - pixelValue;
+                    imageBuffer[((3*y + 1) * maxCols) + x] = 255 - pixelValue;
+                    imageBuffer[((3*y + 2) * maxCols) + x] = 255 - pixelValue;
+                } else {
+                    imageBuffer[((3*y) * maxCols) + x] = 0;
+                    imageBuffer[((3*y + 1) * maxCols) + x] = 0;
+                    imageBuffer[((3*y + 2) * maxCols) + x] = 0;
+                }
+
+            }
+
+        }
+
+        BufferedImage image = new BufferedImage(maxCols, numRows*3, BufferedImage.TYPE_BYTE_GRAY);
         WritableRaster raster = image.getRaster();
-        raster.setPixels(0, 0, maxCols, numRows, imageBuffer);
+        raster.setPixels(0, 0, maxCols, numRows*3, imageBuffer);
 
         ImageIO.write(image, "png", new File(imageFilename));
 
     }
 
 
-    public void drawFrames(String framesFilenameIn, String originalFilenameIn, String ImagePrefix, int videoChannel) throws Exception {
+    public void drawFrames(
+            Map<String, String> config,
+            String framesFilenameIn,
+            String originalFilenameIn,
+            String ImagePrefix,
+            int videoChannel) throws Exception {
         BufferedReader fileIn = new BufferedReader(new FileReader(framesFilenameIn));
 //        WavFile wavIn = WavFile.openWavFile(new File(originalFilenameIn));
 
@@ -565,7 +656,7 @@ public class pxlConverter {
                 WavFile wavIn = WavFile.openWavFile(new File(originalFilenameIn));
 
                 //pixels[lineIndex] = getPixels1(wavIn, previousOffset, lineSyncOffset, videoChannel);
-                pixels[lineIndex] = getPixels2(wavIn, previousOffset, lineSyncOffset, videoChannel);
+                pixels[lineIndex] = getPixels4(wavIn, previousOffset, lineSyncOffset, videoChannel);
                 //pixels[lineIndex] = getPixels3(wavIn, previousOffset, lineSyncOffset, videoChannel);
 
                 wavIn.close();
