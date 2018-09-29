@@ -18,3 +18,9 @@ With the overall goal of "the best video quality possible, given the original si
 In this image, you can see the original PXL 2000 signal in the top two rows.  First is the video signal, followed by the audio channel.  The third row is the output of an FFT transform looking for the sync signal, and the fourth row is simply a smoothed version of the third row.
 
 I'm decomposing the problem by first trying to reliably detect the sync signals-- especially the frame syncs.  Once the frame sync signals are captured, I can treat each frame as an object.  I know that each frame will have the same number of scan lines, each terminating in a short sync pulse.  And I know that each of those per-line sync pulses will be evenly spaced (since each line  in the video image is obviously the same length).  This allows me to reliably decompose the frame into scanlines.  And then, I can treat each scanline as an object itself.  
+
+# Example
+
+Here's an example image from a video that was shot in 1989 of me blowing out the candles on my birthday cake.
+
+<img src = "https://lh3.googleusercontent.com/xcanjcQlgAWUB1BZV36TF7LMKqgmS4Gm94XPNISBzESTNqrl_eoSaeFWaWn2cahdzZ0uuoxi_925mqmMhx_JhMQtXSFUrIuICRRppajVSmZmyGsOrgDbtFSfqrSIvBNp7tmdW0bl7Nk=w2400">
