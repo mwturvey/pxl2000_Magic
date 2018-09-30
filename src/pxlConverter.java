@@ -5,8 +5,7 @@ import javax.sound.sampled.AudioSystem;
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.io.*;
-import java.util.Arrays;
-import java.util.Map;
+import java.util.*;
 
 public class pxlConverter {
 
@@ -20,16 +19,32 @@ public class pxlConverter {
     }
 
 
-    public void fftPass(Map<String, String> config, String fileIn, int videoChannel) throws Exception
+    public void fftPass(Map<String, String> config, String fileIn, String fileOut, int videoChannel) throws Exception
     {
-        if (null == fileIn){
-            fileIn = filename;
-        }
+        File dir = new File(config.get("directory"));
+//        if (null == fileIn){
+//            fileIn = filename;
+//        }
 
         // In the first pass, we'll do the FFT of the input file.
-        String firstPassFilename = fileIn.replaceAll("\\.wav",".fft.wav");
+//        String firstPassFilename = fileIn.replaceAll("\\.wav",".fft.wav");
+        File outFile = new File(dir, fileOut);
+//        if (outFile.exists()){
+//            System.out.println("Skipping FFT Pass.  (" + fileOut + " already exists.)");
+//            return;
+//        }
 
-        WavFile fftWav = WavFile.newWavFile(new File(firstPassFilename),1,150000 * 60 * 60 * 2 ,16,192000);
+        WavFile fftWav = WavFile.newWavFile(outFile,1,150000 * 60 * 60 * 2 ,16,192000);
+
+        boolean outputCsv = false;
+        File csvOutFile = new File(dir, "fft.csv");
+        FileWriter csvOut = null;
+        if (config.get("fft_csv") == "true") {
+            csvOut = new FileWriter(config.get("directory") + "/" + "fft.csv");
+            outputCsv = true;
+        }
+
+
 
         //fftWav.openFile();
         //fftWav.setChannels(1);
@@ -85,23 +100,37 @@ public class pxlConverter {
                 Fft.transform(realBuffer, imaginaryBuffer);
 
                 int[] sampleOut= new int[1];
-                int imageBuffIndex = (circularBuffIndex-1 + imageBuffLen) % imageBuffLen;
-                sampleOut[0] = (int)imageBuff[(circularBuffIndex-1 + imageBuffLen) % imageBuffLen];
-                double foo = realBuffer[imageBuffLen-1];
-                double foo2 = realBuffer[imageBuffLen-2];
-                int indexToSample = 9;
+                //int imageBuffIndex = (circularBuffIndex-1 + imageBuffLen) % imageBuffLen;
+                //sampleOut[0] = (int)imageBuff[(circularBuffIndex-1 + imageBuffLen) % imageBuffLen];
+                //double foo = realBuffer[imageBuffLen-1];
+                //double foo2 = realBuffer[imageBuffLen-2];
+                //int indexToSample = 9;
 //                sampleOut[0] = (int)Math.sqrt(realBuffer[5] * realBuffer[5] + imaginaryBuffer[5] * imaginaryBuffer[5]);
 //                sampleOut[0] = (int)Math.sqrt(realBuffer[indexToSample] * realBuffer[indexToSample] + imaginaryBuffer[indexToSample] * imaginaryBuffer[indexToSample]);
-                sampleOut[0] = (int)Math.sqrt(realBuffer[9] * realBuffer[9] + imaginaryBuffer[9] * imaginaryBuffer[9]) +
-                               (int)Math.sqrt(realBuffer[10] * realBuffer[10] + imaginaryBuffer[10] * imaginaryBuffer[10]) ;
+//                sampleOut[0] = (int)Math.sqrt(realBuffer[9] * realBuffer[9] + imaginaryBuffer[9] * imaginaryBuffer[9]) +
+//                               (int)Math.sqrt(realBuffer[10] * realBuffer[10] + imaginaryBuffer[10] * imaginaryBuffer[10]) ;
+                sampleOut[0] = (int)Math.max(realBuffer[12]*imaginaryBuffer[12], Math.max(realBuffer[13]*imaginaryBuffer[13], Math.max(realBuffer[14]*imaginaryBuffer[14],realBuffer[15]*imaginaryBuffer[15])));
+                sampleOut[0] = (int)Math.sqrt(sampleOut[0]);
                 // normalize
-                sampleOut[0] = sampleOut[0] / 16;
+                sampleOut[0] = sampleOut[0] / 1;
+//                sampleOut[0] = sampleOut[0] / 16;
                 if (sampleOut[0] > 30000) {
                     sampleOut[0] = 30000;
                 }
                 fftWav.writeFrames(sampleOut,0, 1);
                 // output the results to a wav file
                 // output the results to a csv file
+                if (outputCsv) {
+                    int output = 0;
+                    int samplesToOutput = 20;
+                    for (int i=0; i < samplesToOutput; i++) {
+                        output = (int)Math.sqrt(realBuffer[i] * realBuffer[i] + imaginaryBuffer[i] * imaginaryBuffer[i]);
+                        csvOut.write(output + ",");
+                    }
+                    output = (int)Math.sqrt(realBuffer[samplesToOutput] * realBuffer[samplesToOutput] + imaginaryBuffer[samplesToOutput] * imaginaryBuffer[samplesToOutput]);
+                    csvOut.write(output + "\n");
+                }
+
             }
             byte[] frame = new byte[4];
             bytesRead = audioInStream.read(frame);
@@ -124,9 +153,14 @@ public class pxlConverter {
         }
 
 
-        fftWav.close();
         // close the wave file
+        fftWav.close();
         // close the csv file
+
+        if (outputCsv)
+        {
+            csvOut.close();
+        }
     }
 
     public void rollingAverage(
@@ -134,8 +168,17 @@ public class pxlConverter {
             String filenameIn,
             String filenameOut) throws Exception
     {
-        WavFile wavIn = WavFile.openWavFile(new File(filenameIn));
-        WavFile wavOut = WavFile.newWavFile(new File(filenameOut),1,3 ,16,192000);
+        File dir = new File(config.get("directory"));
+
+        File outFile = new File(dir, filenameOut);
+        if (outFile.exists()){
+            System.out.println("Skipping FFT Averaging Pass.  (" +filenameOut + " already exists.)");
+            return;
+        }
+
+        WavFile wavIn = WavFile.openWavFile(new File(dir, filenameIn));
+        WavFile wavOut = WavFile.newWavFile(outFile,1,3 ,16,192000);
+
 
         int numChannels = wavIn.getNumChannels();
         if (numChannels != 1)
@@ -195,6 +238,7 @@ public class pxlConverter {
         wavIn.close();
         wavOut.close();
 
+
     }
 
     public void findSyncs
@@ -202,9 +246,17 @@ public class pxlConverter {
              String filenameIn,
              String filenameOut) throws Exception
     {
-        WavFile wavIn = WavFile.openWavFile(new File(filenameIn));
+        File dir = new File(config.get("directory"));
+
+        File outFile = new File(dir, filenameOut);
+        if (outFile.exists()){
+            System.out.println("Skipping Sync Finding Pass.  (" +filenameOut + " already exists.)");
+            return;
+        }
+
+        WavFile wavIn = WavFile.openWavFile(new File(dir, filenameIn));
         //WavFile wavOut = WavFile.newWavFile(new File(filenameOut),1,3 ,16,192000);
-        FileWriter fileOut = new FileWriter(filenameOut);
+        FileWriter fileOut = new FileWriter(config.get("directory") + "/" +filenameOut);
         int numChannels = wavIn.getNumChannels();
         if (numChannels != 1)
         {
@@ -286,8 +338,16 @@ public class pxlConverter {
             Map<String, String> config,
             String filenameIn,
             String filenameOut) throws Exception {
-        BufferedReader fileIn = new BufferedReader(new FileReader(filenameIn));
-        FileWriter fileOut = new FileWriter(filenameOut);
+        File dir = new File(config.get("directory"));
+
+        File outFile = new File(dir, filenameOut);
+        if (outFile.exists()){
+            System.out.println("Skipping Frame Finding Pass.  (" +filenameOut + " already exists.)");
+            return;
+        }
+
+        BufferedReader fileIn = new BufferedReader(new FileReader(config.get("directory") + "/" + filenameIn));
+        FileWriter fileOut = new FileWriter(config.get("directory") + "/" + filenameOut);
 
         int lineSyncsPerFrame = 91; // a PXL 2000 frame has 91 sync pulses
         int maxlineSyncs = 200;
@@ -318,14 +378,25 @@ public class pxlConverter {
                     nextEntry = maxlineSyncs;
                 }
 
+                // TODO: use a stringbuilder
+                int counter = 0;
+                String tmpLine = "";
+
                 for (int i=0; i < nextEntry; i++){
-                    fileOut.write(lineSyncOffsets[i] + "," + lineSyncDurations[i]);
+                    tmpLine = tmpLine + lineSyncOffsets[i] + "," + lineSyncDurations[i];
+                    counter++;
+//                    fileOut.write(lineSyncOffsets[i] + "," + lineSyncDurations[i]);
                     if (i+1 < nextEntry)
                     {
-                        fileOut.write("," );
+                        tmpLine = tmpLine + ",";
+//                        fileOut.write("," );
                     }
                 }
-                fileOut.write("\n" );
+
+                if (counter > 50) {
+                    // TODO: figure out why this is happening.  Look at Test19 which comes form Birthday ca sample 333000000
+                    fileOut.write(tmpLine + "\n");
+                }
                 nextEntry = 0;
                 if (1 == entryType) {
                     lookingForFrameSync = false;
@@ -546,7 +617,7 @@ public class pxlConverter {
     }
 
 
-    public void saveImage(int[][] pixels, String imageFilename) throws java.io.IOException
+    public void saveImage(int[][] pixels, File dir, String imageFilename) throws java.io.IOException
     {
         int numRows = 0;
         int maxCols = 0;
@@ -625,7 +696,7 @@ public class pxlConverter {
         WritableRaster raster = image.getRaster();
         raster.setPixels(0, 0, maxCols, numRows*3, imageBuffer);
 
-        ImageIO.write(image, "png", new File(imageFilename));
+        ImageIO.write(image, "png", new File(dir, imageFilename));
 
     }
 
@@ -636,7 +707,8 @@ public class pxlConverter {
             String originalFilenameIn,
             String ImagePrefix,
             int videoChannel) throws Exception {
-        BufferedReader fileIn = new BufferedReader(new FileReader(framesFilenameIn));
+        File dir = new File(config.get("directory"));
+        BufferedReader fileIn = new BufferedReader(new FileReader(config.get("directory") + "/" +framesFilenameIn));
 //        WavFile wavIn = WavFile.openWavFile(new File(originalFilenameIn));
 
 
@@ -653,19 +725,24 @@ public class pxlConverter {
                 int lineSyncOffset = Integer.parseInt(lineSplit[i]);
                 // line starts on previousOffset and ends on lineSyncOffset
 
-                WavFile wavIn = WavFile.openWavFile(new File(originalFilenameIn));
+                if (lineIndex <  90) {
+                    WavFile wavIn = WavFile.openWavFile(new File(originalFilenameIn));
 
-                //pixels[lineIndex] = getPixels1(wavIn, previousOffset, lineSyncOffset, videoChannel);
-                pixels[lineIndex] = getPixels4(wavIn, previousOffset, lineSyncOffset, videoChannel);
-                //pixels[lineIndex] = getPixels3(wavIn, previousOffset, lineSyncOffset, videoChannel);
+                    //pixels[lineIndex] = getPixels1(wavIn, previousOffset, lineSyncOffset, videoChannel);
+                    pixels[lineIndex] = getPixels4(wavIn, previousOffset, lineSyncOffset, videoChannel);
+                    //pixels[lineIndex] = getPixels3(wavIn, previousOffset, lineSyncOffset, videoChannel);
 
-                wavIn.close();
+                    wavIn.close();
 
+                }
+                else {
+                    int a=0;
+                }
                 previousOffset = lineSyncOffset;
                 lineIndex++;
             }
 
-            saveImage(pixels, ImagePrefix + currentImage + ".png");
+            saveImage(pixels, dir, ImagePrefix + String.format("%05d", currentImage) + ".png");
 
             currentImage++;
         }
@@ -724,7 +801,131 @@ public class pxlConverter {
 
     }
 
+    public void findValidSoundLocations(
+            Map<String, String> config,
+            String framesFilenameIn,
+            String filenameOut)  throws Exception
+    {
+        BufferedReader fileIn = new BufferedReader(new FileReader(config.get("directory") + "/" + framesFilenameIn));
+        FileWriter fileOut = new FileWriter(config.get("directory") + "/" +filenameOut);
 
-        // public void
+
+        int previousFrame = 0;
+        List<Integer> frameLengths = new ArrayList<Integer>();
+        List<Integer> frameStarts = new ArrayList<Integer>();
+        String line;
+        while (null != (line = fileIn.readLine())) {
+            String[] lineSplit = line.split(",");
+            int frameStart = Integer.parseInt((lineSplit[0]));
+
+            frameStarts.add(frameStart);
+
+            if (previousFrame != 0){
+                frameLengths.add(frameStart-previousFrame);
+            }
+
+            previousFrame = frameStart;
+        }
+
+        frameLengths.sort((x, y) -> y-x);
+        int baseFrameLength = frameLengths.get(frameLengths.size() / 2);
+
+        // for audio clipping purposes,
+        // allow frames up to 2.5 times the median frame length.
+        // if there are a lot of "frame skips" then this
+        // might cause issues with audio getting notably out of sync.
+        baseFrameLength = baseFrameLength * 250 / 100;
+
+        // this will store the start and stopping points of all of the audio we wish to keep
+        List<Map.Entry<Integer,Integer>> audioSegments = new ArrayList<Map.Entry<Integer,Integer>>();
+
+        previousFrame = 0;
+        int startFrame = 0;
+
+        for (int i = 0; i < frameStarts.size() -1; i++) {
+            int thisFramePos = frameStarts.get(i);
+            int thisFrameLength = thisFramePos - previousFrame;
+            if (0 != startFrame
+                    && thisFrameLength > baseFrameLength) {
+                // we've jumped to far, wrap up the previous run as an audio segment and carry on
+                audioSegments.add(new AbstractMap.SimpleEntry<Integer, Integer>(startFrame, previousFrame));
+
+                startFrame = 0;
+            }
+
+            if (0 == startFrame) {
+                startFrame = thisFramePos;
+            }
+
+            previousFrame = thisFramePos;
+        }
+
+        // and add one last segment for the last one we were working on
+        audioSegments.add(new AbstractMap.SimpleEntry<Integer, Integer>(startFrame, previousFrame));
+
+
+
+//        WavFile wavOut = WavFile.newWavFile(new File("sampleOut.wav"),1,3 ,16,44100);
+
+
+        for (Map.Entry<Integer, Integer> segment: audioSegments) {
+            fileOut.write(segment.getKey() + "," + segment.getValue() + "\n");
+
+        }
+        fileOut.close();
+
+    }
+
+    public void generateFinalAudio(
+            Map<String, String> config,
+            String sourceWavFilename,
+            String audioLocationsFilename,
+            String filenameOut,
+            int videoChannel)  throws Exception
+    {
+
+        File dir = new File(config.get("directory"));
+
+        File outFile = new File(dir, filenameOut);
+//        if (outFile.exists()){
+//            System.out.println("Skipping Frame Finding Pass.  (" +filenameOut + " already exists.)");
+//            return;
+//        }
+
+        BufferedReader fileIn = new BufferedReader(new FileReader(config.get("directory") + "/" + audioLocationsFilename));
+
+        WavFile wavOut = WavFile.newWavFile(outFile,1,3 ,16,44100);
+
+        int audioChannel = 1-videoChannel;
+
+        String line;
+        while (null != (line = fileIn.readLine())) {
+            String[] lineSplit = line.split(",");
+
+            int frameStart = Integer.parseInt((lineSplit[0]));
+            int frameEnd = Integer.parseInt((lineSplit[1]));
+
+            WavFile wavIn = WavFile.openWavFile(new File(sourceWavFilename));
+
+            wavIn.seek(frameStart);
+            int[][] singleSample = new int[2][1];
+
+            for (int i=frameStart; i < frameEnd; i++) {
+                wavIn.readFrames(singleSample, 1);
+
+                if (((i-frameStart) % 35) == 0) {
+                    wavOut.writeFrames(singleSample[audioChannel], 1);
+                }
+            }
+            wavIn.close();
+        }
+
+        wavOut.close();
+
+
+    }
+
+
+    // public void
 
 }
