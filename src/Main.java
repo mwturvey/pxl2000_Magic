@@ -46,6 +46,8 @@ public class Main {
             //converter.createNonRepeatingWav();
             //converter.copyNonRepeatingWav();
 
+            
+
             converter.fftPass( config, filename,"fft.wav", videoChannel);
             converter.rollingAverage( config,"fft.wav", "smoothed_fft.wav");
             converter.findSyncs( config,"smoothed_fft.wav", "syncs.csv");
