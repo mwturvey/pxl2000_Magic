@@ -29,10 +29,11 @@ public class pxlConverter {
         // In the first pass, we'll do the FFT of the input file.
 //        String firstPassFilename = fileIn.replaceAll("\\.wav",".fft.wav");
         File outFile = new File(dir, fileOut);
-//        if (outFile.exists()){
-//            System.out.println("Skipping FFT Pass.  (" + fileOut + " already exists.)");
-//            return;
-//        }
+        if (outFile.exists()){
+            System.out.println("Skipping FFT Pass.  (" + fileOut + " already exists.)");
+            return;
+        }
+        System.out.println("Performing FFT Pass.");
 
         WavFile fftWav = WavFile.newWavFile(outFile,1,150000 * 60 * 60 * 2 ,16,192000);
 
@@ -107,20 +108,44 @@ public class pxlConverter {
                 //int indexToSample = 9;
 //                sampleOut[0] = (int)Math.sqrt(realBuffer[5] * realBuffer[5] + imaginaryBuffer[5] * imaginaryBuffer[5]);
 //                sampleOut[0] = (int)Math.sqrt(realBuffer[indexToSample] * realBuffer[indexToSample] + imaginaryBuffer[indexToSample] * imaginaryBuffer[indexToSample]);
-//                sampleOut[0] = (int)Math.sqrt(realBuffer[9] * realBuffer[9] + imaginaryBuffer[9] * imaginaryBuffer[9]) +
-//                               (int)Math.sqrt(realBuffer[10] * realBuffer[10] + imaginaryBuffer[10] * imaginaryBuffer[10]) ;
-                sampleOut[0] = (int)Math.max(realBuffer[12]*imaginaryBuffer[12], Math.max(realBuffer[13]*imaginaryBuffer[13], Math.max(realBuffer[14]*imaginaryBuffer[14],realBuffer[15]*imaginaryBuffer[15])));
-                sampleOut[0] = (int)Math.sqrt(sampleOut[0]);
-                // normalize
-                sampleOut[0] = sampleOut[0] / 1;
-//                sampleOut[0] = sampleOut[0] / 16;
+                sampleOut[0] = (int)Math.sqrt(realBuffer[9] * realBuffer[9] + imaginaryBuffer[9] * imaginaryBuffer[9]) +
+                               (int)Math.sqrt(realBuffer[10] * realBuffer[10] + imaginaryBuffer[10] * imaginaryBuffer[10]) ;
+//                sampleOut[0] = (int)Math.max(realBuffer[12]*imaginaryBuffer[12], Math.max(realBuffer[13]*imaginaryBuffer[13], Math.max(realBuffer[14]*imaginaryBuffer[14],realBuffer[15]*imaginaryBuffer[15])));
+//                sampleOut[0] = (int)Math.sqrt(sampleOut[0]);
+
+
+
+//                List<Integer> fftTaps = new ArrayList<Integer>();
+//                fftTaps.add(9);
+//                fftTaps.add(10);
+//                fftTaps.add(11);
+//                fftTaps.add(12);
+//                fftTaps.add(13);
+//
+//                double sample = 0;
+//                for (Integer tap: fftTaps)
+//                {
+//                    double tmp = realBuffer[tap]*imaginaryBuffer[tap];
+//                    if (tmp > sample){
+//                        sample = tmp;
+//                    }
+//                }
+//                sampleOut[0] = (int)Math.sqrt(sample);
+
+
+
+//                sampleOut[0] = (int)Math.max(realBuffer[9]*imaginaryBuffer[9], Math.max(realBuffer[10]*imaginaryBuffer[10], Math.max(realBuffer[11]*imaginaryBuffer[11],realBuffer[12]*imaginaryBuffer[12])));
+//                sampleOut[0] = (int)Math.sqrt(sampleOut[0]);
+//                // normalize
+//                sampleOut[0] = sampleOut[0] / 1;
+                sampleOut[0] = sampleOut[0] / 16;
                 if (sampleOut[0] > 30000) {
                     sampleOut[0] = 30000;
                 }
                 fftWav.writeFrames(sampleOut,0, 1);
                 // output the results to a wav file
                 // output the results to a csv file
-                if (outputCsv) {
+                if (outputCsv && iterations < 100000) {
                     int output = 0;
                     int samplesToOutput = 20;
                     for (int i=0; i < samplesToOutput; i++) {
@@ -576,7 +601,7 @@ public class pxlConverter {
         int samplesThisRow = (nextOffset - previousOffset + 1);
 
         int pixelsPerRow = 360;
-        int pixelsRowWidth = 150;
+        int pixelsRowWidth = 80;
 
         int[] pixels = new int[pixelsPerRow];
 
