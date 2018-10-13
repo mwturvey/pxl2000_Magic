@@ -201,6 +201,8 @@ public class pxlConverter {
             return;
         }
 
+        System.out.println("Performing FFT Averaging Pass.");
+
         WavFile wavIn = WavFile.openWavFile(new File(dir, filenameIn));
         WavFile wavOut = WavFile.newWavFile(outFile,1,3 ,16,192000);
 
@@ -278,6 +280,8 @@ public class pxlConverter {
             System.out.println("Skipping Sync Finding Pass.  (" +filenameOut + " already exists.)");
             return;
         }
+
+        System.out.println("Performing Sync Finding Pass.");
 
         WavFile wavIn = WavFile.openWavFile(new File(dir, filenameIn));
         //WavFile wavOut = WavFile.newWavFile(new File(filenameOut),1,3 ,16,192000);
@@ -370,6 +374,8 @@ public class pxlConverter {
             System.out.println("Skipping Frame Finding Pass.  (" +filenameOut + " already exists.)");
             return;
         }
+
+        System.out.println("Performing Frame Finding Pass.");
 
         BufferedReader fileIn = new BufferedReader(new FileReader(config.get("directory") + "/" + filenameIn));
         FileWriter fileOut = new FileWriter(config.get("directory") + "/" + filenameOut);
@@ -735,6 +741,7 @@ public class pxlConverter {
         File dir = new File(config.get("directory"));
         BufferedReader fileIn = new BufferedReader(new FileReader(config.get("directory") + "/" +framesFilenameIn));
 //        WavFile wavIn = WavFile.openWavFile(new File(originalFilenameIn));
+        System.out.println("Drawing Frames.");
 
 
         int currentImage = 0;
@@ -834,6 +841,7 @@ public class pxlConverter {
         BufferedReader fileIn = new BufferedReader(new FileReader(config.get("directory") + "/" + framesFilenameIn));
         FileWriter fileOut = new FileWriter(config.get("directory") + "/" +filenameOut);
 
+        System.out.println("Figuring out where to use the sound.");
 
         int previousFrame = 0;
         List<Integer> frameLengths = new ArrayList<Integer>();
@@ -908,6 +916,8 @@ public class pxlConverter {
             String filenameOut,
             int videoChannel)  throws Exception
     {
+
+        System.out.println("Generating Final Audio.");
 
         File dir = new File(config.get("directory"));
 
