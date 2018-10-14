@@ -4,7 +4,7 @@ import java.util.Map;
 
 public class Main {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception{
 
         if (args.length == 0) {
 
@@ -46,8 +46,6 @@ public class Main {
             //converter.createNonRepeatingWav();
             //converter.copyNonRepeatingWav();
 
-            
-
             converter.fftPass( config, filename,"fft.wav", videoChannel);
             converter.rollingAverage( config,"fft.wav", "smoothed_fft.wav");
             converter.findSyncs( config,"smoothed_fft.wav", "syncs.csv");
@@ -58,7 +56,8 @@ public class Main {
         }
         catch (Exception e)
         {
-            int a = 0;
+            // for now, re-throw the exception so we can better debug the issue
+            throw(e);
         }
     }
 }

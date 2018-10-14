@@ -647,6 +647,9 @@ public class pxlConverter {
 //            int pixelEnd = pixelStart + unpaddedSamples/(pixelsRowWidth+1);
             int pixelStart = (int)((((double)samplesWithoutOverlap)/((double)(pixelsPerRow))) * (double)i);
             int pixelEnd = pixelStart + overlap;
+            int max = audioData[videoChannel][pixelStart];
+            int min = audioData[videoChannel][pixelStart];
+
             for (int j=pixelStart; j < pixelEnd; j++)
             {
                 int delta = Math.abs(audioData[videoChannel][j] - audioData[videoChannel][j+1]);
@@ -654,8 +657,12 @@ public class pxlConverter {
                 {
                     maxDelta = delta;
                 }
+
+                if (audioData[videoChannel][j] < min) {min = audioData[videoChannel][j];}
+                if (audioData[videoChannel][j] > max) {max = audioData[videoChannel][j];}
             }
-            pixels[i] = maxDelta;
+            pixels[i] = maxDelta; // looking for the largest slope to determine pixel value
+//            pixels[i] = max-min; // looking for largest absolute (peak-to-peak) value to determine pixel value
         }
 
         return pixels;
