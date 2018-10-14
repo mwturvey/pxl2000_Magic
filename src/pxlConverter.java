@@ -596,43 +596,57 @@ public class pxlConverter {
         return pixels;
     }
 
-    public int[] getPixels4(WavFile wavIn, int previousOffset, int nextOffset, int videoChannel) throws java.io.IOException, WavFileException
+    public int[] getPixels4(
+            WavFile wavIn,
+            int previousOffset,
+            int nextOffset,
+            int videoChannel
+            ) throws java.io.IOException, WavFileException
     {
         // let's try something simple first.
         // For every six pixels (or rather, pixel transitions), find the steepest slope, and
         // consider that to be the "color" of the pixel.
 
+        //previousOffset -= 100;
+        //nextOffset += 100;
 
 //        int numPixels = (nextOffset - previousOffset + 1) / 6;
         int samplesThisRow = (nextOffset - previousOffset + 1);
 
         int pixelsPerRow = 360;
-        int pixelsRowWidth = 80;
+//        int pixelsRowWidth = 80;
 
         int[] pixels = new int[pixelsPerRow];
 
         int numChannels = wavIn.getNumChannels();
 
+        assert (previousOffset < nextOffset);
+
         int[][] audioData = new int[numChannels][nextOffset - previousOffset + 1];
 
-        int lineShift = -50; // TODO: This is a tunable parameter to shift the lines to the right or left
+        int lineShift = -104; // TODO: This is a tunable parameter to shift the lines to the right or left
 
         wavIn.seek(previousOffset + lineShift);
 
-        wavIn.readFrames(audioData,0,nextOffset - previousOffset + 1);
+        wavIn.readFrames(audioData,0,samplesThisRow);
         //// This is for debug purposes
         //WavFile wavOut = WavFile.newWavFile(new File("DebugWav-" + previousOffset + "-" + nextOffset +".wav"),1,3 ,16,192000);
 
         //wavOut.writeFrames(audioData[videoChannel], nextOffset - previousOffset + 1);
         //wavOut.close();
 
-        int paddingNeeded = samplesThisRow/(pixelsRowWidth+1) - (samplesThisRow/(pixelsPerRow+1));
-        int unpaddedSamples = samplesThisRow - paddingNeeded;
+        int overlap = 15;
+        int samplesWithoutOverlap = samplesThisRow - overlap;
+
+        //int paddingNeeded = samplesThisRow/(pixelsRowWidth+1) - (samplesThisRow/(pixelsPerRow+1));
+        //int unpaddedSamples = samplesThisRow - paddingNeeded;
 
         for (int i=0; i < pixelsPerRow; i++){
             int maxDelta = 0;
-            int pixelStart = (unpaddedSamples/(pixelsPerRow+1)) * i;
-            int pixelEnd = (unpaddedSamples/(pixelsPerRow+1)) * i + unpaddedSamples/(pixelsRowWidth+1);
+//            int pixelStart = (unpaddedSamples/(pixelsPerRow+1)) * i;
+//            int pixelEnd = pixelStart + unpaddedSamples/(pixelsRowWidth+1);
+            int pixelStart = (int)((((double)samplesWithoutOverlap)/((double)(pixelsPerRow))) * (double)i);
+            int pixelEnd = pixelStart + overlap;
             for (int j=pixelStart; j < pixelEnd; j++)
             {
                 int delta = Math.abs(audioData[videoChannel][j] - audioData[videoChannel][j+1]);
@@ -698,7 +712,7 @@ public class pxlConverter {
         }
 
         Arrays.sort(allVals);
-        maxVal = allVals[numPixels * 85 / 100];
+        maxVal = (int)(allVals[numPixels * 85 / 100] * 1.2);
 
         int[] imageBuffer = new int[(3*numRows) * maxCols];
 
@@ -732,6 +746,38 @@ public class pxlConverter {
     }
 
 
+    private int[] annealFrame(String[] frame, int iterations, double strength)
+    {
+        int frameLength = frame.length;
+
+        double[] result = new double[frameLength/2];
+        double[] oldResult = new double[frameLength/2];
+
+        for (int i=0; i < frameLength; i+=2) {
+            result[i/2] = Integer.parseInt(frame[i]);
+        }
+
+        for (int iteration=0; iteration < iterations; iteration++){
+
+            for (int i=0; i < result.length; i++) {
+                oldResult[i] = result[i];
+            }
+
+            for (int i=1; i < (result.length - 1); i++) {
+                result[i] = (oldResult[i] + (oldResult[i-1]  * strength) + (oldResult[i+1] * strength)) /
+                                (1+ (2 * strength));
+            }
+        }
+
+        int[] intResult = new int[result.length];
+
+        for (int i=0; i < result.length; i++) {
+            intResult[i] = (int)(result[i]);
+        }
+
+        return intResult;
+    }
+
     public void drawFrames(
             Map<String, String> config,
             String framesFilenameIn,
@@ -751,10 +797,12 @@ public class pxlConverter {
         while (null != (line = fileIn.readLine())) {
             String[] lineSplit = line.split(",");
 
+            int[] frame = annealFrame(lineSplit, 0, 0.5);
+
             int lineIndex = 0;
-            int previousOffset = Integer.parseInt(lineSplit[0]);
-            for (int i=2; i < lineSplit.length; i+= 2) {
-                int lineSyncOffset = Integer.parseInt(lineSplit[i]);
+            int previousOffset = frame[0];
+            for (int i=1; i < frame.length; i++) {
+                int lineSyncOffset = frame[i];
                 // line starts on previousOffset and ends on lineSyncOffset
 
                 if (lineIndex <  90) {
