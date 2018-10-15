@@ -647,6 +647,14 @@ public class pxlConverter {
 //            int pixelEnd = pixelStart + unpaddedSamples/(pixelsRowWidth+1);
             int pixelStart = (int)((((double)samplesWithoutOverlap)/((double)(pixelsPerRow))) * (double)i);
             int pixelEnd = pixelStart + overlap;
+            if (pixelStart < 0) {
+              pixelStart = 0;
+            }
+            if (pixelEnd >= audioData[videoChannel].length) {
+              pixelEnd = audioData[videoChannel].length - 1;
+              //System.out.println(pixelStart);
+              //System.out.println(pixelEnd);
+            }
             int max = audioData[videoChannel][pixelStart];
             int min = audioData[videoChannel][pixelStart];
 
