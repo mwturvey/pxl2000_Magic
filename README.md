@@ -5,6 +5,21 @@ The PXL2000 is a video camera manufactured by Fisher Price in the late 1980's.  
 
 This project's aim is to convert a WAV file of such a cassette recording into the corresponding video with as high of a quality as possible.  
 
+# Using
+
+Currently, the interface is entirely via command-line. Here are the typical steps.
+
+1) Digitize a PXL2000 tape at 192kHz (audacity is a good match for this task)
+2) Export the file as **_YOUR_FILE_.wav**
+3) Move that .wav file into the **src** directory of this project
+4) From the **src** directory, run: ```./process.sh _YOUR_FILE_.wav```
+
+Expect FFT and frame extraction to take 2 to 10x realtime. For a full PXL cassette, this could take a couple hours.
+
+You can track processing progress by comparing the size of the **_YOUR_FILE_/fft.wav** to your original file: **_YOUR_FILE_/fft.wav** will end up approximately 1/2 the size of the original.
+
+When process.sh completes, there should be a playable video file in **_YOUR_FILE_/out.mp4**
+
 # Related
 I've considered writing this tool for a while, and as I started getting more serious, I came across the work of Kevin Seifert.  He's already done a ton of work decoding the format and written a decoder here: https://github.com/sevkeifert/pxl-2000-decoder
 
@@ -25,17 +40,4 @@ Here's an example image from a video that was shot in 1989 of me blowing out the
 
 <img src = "https://lh3.googleusercontent.com/xcanjcQlgAWUB1BZV36TF7LMKqgmS4Gm94XPNISBzESTNqrl_eoSaeFWaWn2cahdzZ0uuoxi_925mqmMhx_JhMQtXSFUrIuICRRppajVSmZmyGsOrgDbtFSfqrSIvBNp7tmdW0bl7Nk=w2400">
 
-# Using
 
-Currently, the interface is entirely via command-line. Here are the typical steps.
-
-1) Digitize a PXL2000 tape at 192kHz (audacity is a good match for this task)
-2) Export the file as **_YOUR_FILE_.wav**
-3) Move that .wav file into the **src** directory of this project
-4) From the **src** directory, run: ```./process.sh _YOUR_FILE_.wav```
-
-Expect FFT and frame extraction to take 2 to 10x realtime. For a full PXL cassette, this could take a couple hours.
-
-You can track processing progress by comparing the size of the **_YOUR_FILE_/fft.wav** to your original file: **_YOUR_FILE_/fft.wav** will end up approximately 1/2 the size of the original.
-
-When process.sh completes, there should be a playable video file in **_YOUR_FILE_/out.mp4**
