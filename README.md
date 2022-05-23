@@ -25,6 +25,8 @@ I've considered writing this tool for a while, and as I started getting more ser
 
 My experience with that decoder is that, while it does an awesome job in that you can make out what is on the video (truly a big accomplishment), it struggles to reliably find line and even frame syncs.  I started this project with the intent of improving that project, but quickly realized that my overall approach was different enough that it would be easier to start coding from scratch.
 
+Another project to decode PXL2000 video can be found here: https://github.com/TroyMcQuinn/pxl2000-converter
+
 # Approach
 With the overall goal of "the best video quality possible, given the original signal," I chose to limit this project to using WAV file as the input (no streaming support).  It is built as a series of filters that run one after the other.  It identifies the sync signals by running a Fourier Transform on the input stream, looking for the 15 Khz sync signals.  This approach appears to work very well for identifying the signals, but at the cost of taking a long time to compute.  
 
