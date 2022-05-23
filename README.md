@@ -40,6 +40,6 @@ I'm decomposing the problem by first trying to reliably detect the sync signals-
 
 Here's an example image from a video that was shot in 1989 of me blowing out the candles on my birthday cake.
 
-<img src = "https://drive.google.com/file/d/1gra2PAASm0H3xcyAkXx1sEn8QqMGRugY/view?usp=sharing">
+<img src = "https://photos.app.goo.gl/b4M2hVdU247MNACm6">
 
 
